@@ -1,0 +1,224 @@
+---
+title: "OzoneXpect App"
+author: "Akash Mer"
+date: "`r Sys.Date()`"
+output:
+    slidy_presentation:
+        template: NULL
+        keep_md: true
+        theme: cerulean
+knit: (function(input, ...){
+    rmarkdown::render(input,
+        output_dir = "C:/Users/akash/Documents/datasciencecoursera/OzoneXpect/docs",
+        output_file = file.path("./index"))
+    })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## **Introduction**
+
+**OzoneXpect** aims to **predict mean Ozone levels in parts per billion(ppb)** based on the measurement taken or the information known by the user.  
+The user is allowed to input the following information :
+  
+1. **Measurement taken/information known to the user** - Represented as a predictor in the app, user can choose from the following,
+    + **Temperature***(default)*
+    + **Wind speed**
+    + **Solar Radiation**
+2. **Current Month** - Month the above measurement was taken in. Also gives the option to not specify the month. User can choose from **May to September** or **Any Month***(default)*
+3. **Measurement Value** - User can then enter the measurement value to be used for the prediction.
+  
+**Data Used** - The data for the app comes from the `airquality` data set in R `datasets` package which is as follows,
+```{r loadData, echo=TRUE, cache=TRUE, comment=""}
+str(airquality)
+```
+**`r 100 - round(mean(complete.cases(airquality))*100, 2)`% of rows** contain missing values. `impute.knn()` function from the `impute` package was used to impute these mmissing values
+
+## **How does it predict?**
+
+**OzoneXpect** predicts using 2 different models,
+  
+1. **Linear Model** - A linear model is built using the desired predictor as the outcome and using the data from the `airquality` data set. The data is subsetted in case a particular month was selected to ensure stratification and avoid any confounding due to the *month* variable. This model is built using the `lm()` function in R.
+2. **Loess Model** - A non-linear model is built under the same circumstances as above. This model is built using the `loess()` function in R with a **span of 0.7**
+  
+Then, the mean ozone level is predicted using both models and returned with a 95% prediction interval for both models  
+
+## **Outputs**
+  
+### **1. Relationship Plot**
+
+Salient Features : 
+  
+* An interactive scatter plot between ozone and the desired predictor is displayed as soon as any **predictor and month is selected and changes based on the changes in those 2 inputs**.
+* **Lines representing both the models** are also included with the option to click and select which one appears left to the user
+* Once the measurement input is done, the plot is updated with the prediction points plotted as well
+
+```{r examplePlot, cache=TRUE, warning=FALSE, message=FALSE}
+if(system.file(package = "dplyr") == "") install.packages("dplyr")
+if(system.file(package = "impute") == "") install.packages("impute")
+if(system.file(package = "ggplot2") == "") install.packages("ggplot2")
+if(system.file(package = "plotly") == "") install.packages("plotly")
+library(dplyr)
+library(impute)
+library(ggplot2)
+library(plotly)
+
+# Loading the data set
+# Imputing the missing values with rng seed 541258
+# Converted to a matrix since that's the way impute.knn works
+dat <- impute.knn(as.matrix(airquality), k = 10, rng.seed = 541258)$data
+
+# Converting it back to a data frame
+dat <- as.data.frame(dat) %>%
+    # Rounding off the imputed values since ozone values should be integer
+    mutate(Ozone = round(Ozone),
+           # Same for Solar radiation
+           Solar.R = round(Solar.R),
+           # Converting month column to a factor
+           Month = factor(Month, labels = c("May", "June", "July", "August",
+                                                "September")))
+
+# Changing the column names to lower case for easier typing and matching
+names(dat) <- tolower(names(dat))
+
+# Defining the Simple Linear Model for each predictor
+modelLinear <- lm(ozone ~ temp, dat)
+modelLoess <- loess(ozone ~ temp, dat, span = 0.7)
+
+# Defining the plotting points for x axis
+newDat <- data.frame(temp = seq(min(dat$temp), max(dat$temp), by = 0.05))
+
+# Predicting on the linear model
+linear <- predict(modelLinear, newdata = newDat)
+            
+# Predicting on the loess model
+smooth <- predict(modelLoess, newdata = newDat)
+    
+# Prediction value for the linear model
+valueDat <- data.frame(temp = 78)
+predLinear <- predict(modelLinear, newdata = valueDat)
+            
+# Predicting value for the loess model
+predLoess <- predict(modelLoess, newdata = valueDat)
+            
+# Adding to the data fram to display
+valueDat <- cbind(valueDat, predLinear, predLoess)
+            
+# Creating the plot
+plotModel <- ggplot() +
+    # Plot the ozone against the predictor the user wanted
+    geom_point(data = dat,
+           aes(temp, ozone),
+               size = 0.7) +
+    # Plot the linear model line
+    geom_line(data = newDat, aes(temp, linear,
+                             color = "Linear Model"),
+              linewidth = 1.5) +
+    # Plot the loess model line
+    geom_line(data = newDat, aes(temp, smooth,
+                                 color = "Loess Model"),
+              linewidth = 1.5) +
+    # Adding the prediction points
+    geom_point(data = valueDat, aes(temp, predLinear,
+                             color = "Linear Model"), size = 3) +
+    geom_point(data = valueDat, aes(temp, predLoess,
+                             color = "Loess Model"), size = 3) +
+    # Changing labels and adding title
+    labs(title = "Example Plot", y = "Ozone (ppb)",
+         x = "Temperature (°F)") +
+    # Adding the legend for different models
+    scale_color_manual(name = "Model",
+                       values = c("#F8766D", "#00B0F6"),
+                       breaks = c("Linear Model", "Loess Model")) +
+    # Changing to black and white thee
+    theme_bw()
+            
+# Returning a plotly object
+ggplotly(plotModel)
+```
+  
+### **2. Predictions**
+
+Salient Features :
+  
+* A table is displayed to the user **only if the input values are within the corresponding bounds of minimum and maximum values** in the `airquality` data set to ensure higher accuracy.
+* Any **negative values taken by the prediction or the 95% prediction interval bounds are highlighted with orange** to inform the user that these values are incorrect.
+  
+```{r examplePrediction, cache=TRUE, warning=FALSE, message=FALSE, dependson="examplePlot"}
+if(system.file(package = "gt") == "") install.packages("gt")
+library(gt)
+
+# Predicting om the linear model
+ozoneLinear <- predict(modelLinear, newdata = valueDat,
+                                   interval = "prediction")
+
+# Predicting on the loess model
+predLoess <- predict(modelLoess, newdata = valueDat, se = TRUE)
+ozoneLoess  <- data.frame(predLoess$fit,
+                          predLoess$fit - predLoess$se.fit,
+                          predLoess$fit + predLoess$se.fit)
+            
+# Combining the predictions into a single data framw
+result <- data.frame(ozone=c(ozoneLinear[1,1], ozoneLoess[1,1]),
+                     lower=c(ozoneLinear[1,2], ozoneLoess[1,2]),
+                     upper=c(ozoneLinear[1,3], ozoneLoess[1,3]))
+            
+# Creating a gt table object for printing
+tab <- gt(result) %>%
+    tab_header(
+        title = md("**Example Prediction**")) %>%
+        tab_spanner(
+        label = md("**95% Prediction Interval**"),
+        columns = c("lower", "upper")
+    ) %>%
+    cols_label(
+        ozone = md("**Mean Ozone Level(ppb)**"),
+        lower = md("*lower limit*"),
+        upper = md("*upper limit*")
+    ) %>%
+    tab_row_group(
+        label = md("**Loess Model**"),
+        rows = 2
+    ) %>%
+    tab_row_group(
+        label = md("**Linear Model**"),
+        rows = 1
+    ) %>%
+    tab_style(
+        style = cell_fill(color = "orange", alpha = 0.5),
+        locations = cells_body(columns = everything(),
+                               rows = ozone < 0 |
+                                   lower < 0 |
+                                   upper < 0)
+    ) %>%
+    tab_footnote(
+        footnote = md("*These negative values are not helpful*"),
+        locations = cells_body(columns = everything(),
+                               rows = ozone < 0 |
+                                   lower < 0 |
+                                   upper < 0)
+    ) %>%
+    tab_source_note(
+    source_note = md("*Reference: airquality data set from R 
+                     datasets package*")
+    )
+
+# Returning the table
+tab
+```
+
+## **Strengths**
+  
+1. The user is **afforded a lot of input options** like deciding the predictor, informing the app about the current month, and thus is able to **get mean ozone levels depending on a variety of conditions**.
+2. An **interactive** plot is displayed which **updates depending on the user's input**
+3. **Both linear and non-linear predictions are returned**, thus allowing the user to choose whatever predictions they want
+4. User is **informed about incorrect predictions as well**
+5. Predictions are coupled with **95% prediction intervals** thus providing the probability statistic behind the uncertainty in the predictions
+  
+### *Limitations and Plans to tackle the limitations*
+  
+1. Small data set - In search for larger data sets representing similar variables
+2. Only 6/12 months included - In search for data sets containing measurements for around the year
+3. Data was not divided into train/test sets due to the already small sample size - Prediction intervals and the associated probability of error is provided though

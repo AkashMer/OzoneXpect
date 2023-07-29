@@ -1,0 +1,12 @@
+name: OzoneXpect
+title: OzoneXpect
+username: akashmer
+account: akashmer
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9526668
+bundleId: 7510114
+url: https://akashmer.shinyapps.io/OzoneXpect/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
