@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ## **Introduction**
 
-**OzoneXpect** aims to **predict mean Ozone levels in parts per billion(ppb)** based on the measurement taken or the information known by the user.  
+**[OzoneXpect](http://akashmer.shinyapps.io/OzoneXpect)** aims to **predict mean Ozone levels in parts per billion(ppb)** based on the measurement taken or the information known by the user.  
 The user is allowed to input the following information :
   
 1. **Measurement taken/information known to the user** - Represented as a predictor in the app, user can choose from the following,
@@ -38,7 +38,7 @@ str(airquality)
 
 ## **How does it predict?**
 
-**OzoneXpect** predicts using 2 different models,
+**[OzoneXpect](http://akashmer.shinyapps.io/OzoneXpect)** predicts using 2 different models,
   
 1. **Linear Model** - A linear model is built using the desired predictor as the outcome and using the data from the `airquality` data set. The data is subsetted in case a particular month was selected to ensure stratification and avoid any confounding due to the *month* variable. This model is built using the `lm()` function in R.
 2. **Loess Model** - A non-linear model is built under the same circumstances as above. This model is built using the `loess()` function in R with a **span of 0.7**
@@ -222,3 +222,5 @@ tab
 1. Small data set - In search for larger data sets representing similar variables
 2. Only 6/12 months included - In search for data sets containing measurements for around the year
 3. Data was not divided into train/test sets due to the already small sample size - Prediction intervals and the associated probability of error is provided though
+  
+### **[LINK TO THE APPLICATION](http://akashmer.shinyapps.io/OzoneXpect)**
