@@ -4,9 +4,9 @@ author: "Akash Mer"
 date: "`r Sys.Date()`"
 output:
     slidy_presentation:
-        template: NULL
         keep_md: true
         theme: cerulean
+        highlight: breezedark
 knit: (function(input, ...){
     rmarkdown::render(input,
         output_dir = "C:/Users/akash/Documents/datasciencecoursera/OzoneXpect/docs",
